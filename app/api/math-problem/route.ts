@@ -1,35 +1,54 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { supabase } from '../../../lib/supabaseClient'
+import { DifficultyLevel } from '../../../lib/types'
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY!)
 
 export async function POST(request: NextRequest) {
   try {
-    return await generateProblem()
+    const { difficulty = DifficultyLevel.MEDIUM } = await request.json()
+    
+    // Validate difficulty level
+    if (!Object.values(DifficultyLevel).includes(difficulty)) {
+      return NextResponse.json({ error: 'Invalid difficulty level' }, { status: 400 })
+    }
+    
+    return await generateProblem(difficulty)
   } catch (error) {
     console.error('API Error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
 
-async function generateProblem() {
+async function generateProblem(difficulty: DifficultyLevel = DifficultyLevel.MEDIUM) {
   try {
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
 
+    const difficultyPrompts = {
+      [DifficultyLevel.EASY]: 'simple single-step problems with numbers under 20',
+      [DifficultyLevel.MEDIUM]: 'two-step problems with numbers under 100',
+      [DifficultyLevel.HARD]: 'multi-step problems with larger numbers and more complex scenarios'
+    }
 
-    const prompt = `Generate a math word problem suitable for Primary 5 students (ages 10-11). The problem should involve basic arithmetic operations like addition, subtraction, multiplication, or division. Make it engaging and relatable to children.
+    const prompt = `Generate a math word problem suitable for Primary 5 students (ages 10-11). 
+Difficulty Level: ${difficulty.toUpperCase()}
+Requirements: ${difficultyPrompts[difficulty] || difficultyPrompts[DifficultyLevel.MEDIUM]}
+
+      The problem should involve basic arithmetic operations like addition, subtraction, multiplication, or division. Make it engaging and relatable to children.
 
       Return your response as a JSON object with this exact format:
       {
         "problem_text": "The word problem text here",
-        "final_answer": [numeric answer]
+        "final_answer": [numeric answer],
+        "difficulty": "${difficulty}"
       }
 
       Example:
       {
         "problem_text": "Sarah has 24 stickers. She gives 8 stickers to her friend and buys 12 more stickers. How many stickers does Sarah have now?",
-        "final_answer": 28
+        "final_answer": 28,
+        "difficulty": "medium"
       }
 
       Generate a new, unique problem:`
@@ -63,7 +82,8 @@ async function generateProblem() {
       .from('math_problem_sessions')
       .insert({
         problem_text: problemData.problem_text,
-        correct_answer: problemData.final_answer
+        correct_answer: problemData.final_answer,
+        difficulty: problemData.difficulty || difficulty
       })
       .select()
       .single()
