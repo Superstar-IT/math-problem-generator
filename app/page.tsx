@@ -16,16 +16,65 @@ export default function Home() {
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null)
 
   const generateProblem = async () => {
-    // TODO: Implement problem generation logic
-    // This should call your API route to generate a new problem
-    // and save it to the database
+    setIsLoading(true)
+    setFeedback('')
+    setIsCorrect(null)
+    setUserAnswer('')
+    
+    try {
+      const response = await fetch('/api/math-problem', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        setProblem(data.problem)
+        setSessionId(data.sessionId)
+      } else {
+        throw new Error(data.error || 'Failed to generate problem')
+      }
+    } catch (error) {
+      console.error('Error generating problem:', error)
+      alert('Failed to generate problem. Please try again.')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const submitAnswer = async (e: React.FormEvent) => {
     e.preventDefault()
-    // TODO: Implement answer submission logic
-    // This should call your API route to check the answer,
-    // save the submission, and generate feedback
+    setIsLoading(true)
+    
+    try {
+      const response = await fetch('/api/math-problem/submit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          sessionId,
+          userAnswer: parseFloat(userAnswer)
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        setIsCorrect(data.isCorrect)
+        setFeedback(data.feedback)
+      } else {
+        throw new Error(data.error || 'Failed to submit answer')
+      }
+    } catch (error) {
+      console.error('Error submitting answer:', error)
+      alert('Failed to submit answer. Please try again.')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -52,7 +101,7 @@ export default function Home() {
               {problem.problem_text}
             </p>
             
-            <form onSubmit={submitAnswer} className="space-y-4">
+            <form onSubmit={submitAnswer} className="space-y-4 mb-6">
               <div>
                 <label htmlFor="answer" className="block text-sm font-medium text-gray-700 mb-2">
                   Your Answer:
