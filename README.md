@@ -50,7 +50,7 @@ Experience the full functionality including:
 ### 1. Clone the Repository
 
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/Superstar-IT/math-problem-generator.git
 cd math-problem-generator
 ```
 
